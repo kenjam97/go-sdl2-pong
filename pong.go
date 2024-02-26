@@ -23,6 +23,27 @@ type ball struct {
 	color  color
 }
 
+func (ball *ball) draw(pixels []byte) {
+	for y := -ball.radius; y < ball.radius; y++ {
+		for x := -ball.radius; x < ball.radius; x++ {
+			if x*x+y*y < ball.radius*ball.radius {
+				setPixel(int(ball.x)+x, int(ball.y)+y, ball.color, pixels)
+			}
+		}
+	}
+}
+
+func (ball *ball) update() {
+	ball.x += ball.xv
+	ball.y += ball.yv
+
+	if ball.y < 0 {
+		ball.yv = -ball.yv
+	} else if int(ball.y) > winHeight {
+		ball.yv = -ball.yv
+	}
+}
+
 type paddle struct {
 	pos
 	w, h  int
@@ -35,9 +56,18 @@ func (paddle *paddle) draw(pixels []byte) {
 
 	for y := 0; y < paddle.h; y++ {
 		for x := 0; x < paddle.w; x++ {
-			setPixel(startX+x, startY+y, color{255, 255, 255}, pixels)
+			setPixel(startX+x, startY+y, paddle.color, pixels)
 		}
 	}
+}
+
+func (paddle *paddle) update(keyState []uint8) {
+    if keyState[sdl.SCANCODE_W] != 0 {
+        paddle.y--
+    }
+    if keyState[sdl.SCANCODE_S] != 0 {
+        paddle.y++
+    }
 }
 
 func setPixel(x, y int, c color, pixels []byte) {
@@ -77,15 +107,10 @@ func main() {
 
 	pixels := make([]byte, winWidth*winHeight*4)
 
-	for y := 0; y < winHeight; y++ {
-		for x := 0; x < winWidth; x++ {
-			setPixel(x, y, color{byte(x % 255), byte(y % 255), 0}, pixels)
-		}
-	}
+	player1 := paddle{pos{100, 100}, 20, 100, color{255, 255, 255}}
+	ball := ball{pos{300, 300}, 20, 0, 0, color{255, 255, 255}}
 
-	tex.Update(nil, unsafe.Pointer(&pixels[0]), winWidth*4)
-	renderer.Copy(tex, nil, nil)
-	renderer.Present()
+    keyState := sdl.GetKeyboardState()
 
 	for {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -94,6 +119,15 @@ func main() {
 				return
 			}
 		}
+
+		player1.draw(pixels)
+        player1.update(keyState)
+		ball.draw(pixels)
+
+		tex.Update(nil, unsafe.Pointer(&pixels[0]), winWidth*4)
+		renderer.Copy(tex, nil, nil)
+		renderer.Present()
+
 		sdl.Delay(16)
 	}
 }
